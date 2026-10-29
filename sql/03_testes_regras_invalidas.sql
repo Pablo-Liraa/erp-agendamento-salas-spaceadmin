@@ -1,0 +1,865 @@
+-- =====================================================================
+-- Sistema de Reservas - TESTES DE REGRAS INVÁLIDAS
+-- Execute DEPOIS de criar_banco_sistema_reservas.sql e dados_ficticios_sistema_reservas.sql
+-- CADA instrução abaixo DEVE FALHAR. Se alguma funcionar, a regra não está protegendo o banco.
+-- (Use a opção "continuar após erro" do seu programa, ou rode uma por vez.)
+-- A) regras gerais | B) chaves primárias | C) registros órfãos (FK) | D) exclusão do pai
+-- =====================================================================
+USE `sistema_reservas`;
+
+-- =====================================================================
+-- A) REGRAS GERAIS (UNIQUE, CHECK, NOT NULL, FK)
+-- =====================================================================
+
+-- Teste 001 | USUARIOS | STATUS fora da lista (ATIVO, INATIVO, BLOQUEADO)
+-- Esperado: ERRO
+INSERT INTO USUARIOS (NOME, STATUS) VALUES ('Teste', 'SUSPENSO');
+
+-- Teste 002 | USUARIOS | NOME é obrigatório (NOT NULL)
+-- Esperado: ERRO
+INSERT INTO USUARIOS (NOME) VALUES (NULL);
+
+-- Teste 003 | TELEFONES_USUARIOS | mesmo número para o mesmo usuário (PK = usuário-número)
+-- Esperado: ERRO
+INSERT INTO TELEFONES_USUARIOS (ID_USUARIO, NUMERO_TELEFONE) VALUES (1, '11987654321');
+
+-- Teste 004 | TELEFONES_USUARIOS | TIPO_TELEFONE fora da lista
+-- Esperado: ERRO
+INSERT INTO TELEFONES_USUARIOS (ID_USUARIO, NUMERO_TELEFONE, TIPO_TELEFONE) VALUES (2, '21911112222', 'FAX');
+
+-- Teste 005 | TELEFONES_USUARIOS | FK: usuário inexistente
+-- Esperado: ERRO
+INSERT INTO TELEFONES_USUARIOS (ID_USUARIO, NUMERO_TELEFONE) VALUES (999, '11900000000');
+
+-- Teste 006 | EMAILS_USUARIOS | e-mail único no sistema todo (é o login)
+-- Esperado: ERRO
+INSERT INTO EMAILS_USUARIOS (ID_USUARIO, ENDERECO_EMAIL) VALUES (2, 'ana.souza@exemplo.com.br');
+
+-- Teste 007 | PERFIS | NOME único
+-- Esperado: ERRO
+INSERT INTO PERFIS (NOME, DESCRICAO) VALUES ('Administrador', 'Duplicado');
+
+-- Teste 008 | PERMISSOES | RECURSO + ACAO únicos
+-- Esperado: ERRO
+INSERT INTO PERMISSOES (NOME, DESCRICAO, RECURSO, ACAO) VALUES ('Outra consulta de reservas', 'Duplicada', 'RESERVAS', 'CONSULTAR');
+
+-- Teste 009 | PERMISSOES | ACAO fora da lista
+-- Esperado: ERRO
+INSERT INTO PERMISSOES (NOME, DESCRICAO, RECURSO, ACAO) VALUES ('Ler salas', 'x', 'SALAS', 'LER');
+
+-- Teste 010 | PERFIS_USUARIOS | PK composta: vínculo usuário-perfil repetido
+-- Esperado: ERRO
+INSERT INTO PERFIS_USUARIOS (ID_USUARIO, ID_PERFIL) VALUES (8, 1);
+
+-- Teste 011 | CLIENTES | ID_USUARIO único (relação 1:1)
+-- Esperado: ERRO
+INSERT INTO CLIENTES (ID_USUARIO) VALUES (1);
+
+-- Teste 012 | FUNCIONARIOS | DATA_DEMISSAO não pode ser anterior à admissão
+-- Esperado: ERRO
+INSERT INTO FUNCIONARIOS (ID_USUARIO, CARGO, DATA_ADMISSAO, DATA_DEMISSAO) VALUES (3, 'Teste', '2025-01-10', '2024-12-31');
+
+-- Teste 013 | FUNCIONARIOS | ID_USUARIO único (relação 1:1)
+-- Esperado: ERRO
+INSERT INTO FUNCIONARIOS (ID_USUARIO, CARGO, DATA_ADMISSAO) VALUES (4, 'Teste', '2025-01-01');
+
+-- Teste 014 | PROPRIETARIOS | PERCENTUAL_REPASSE entre 0 e 100
+-- Esperado: ERRO
+INSERT INTO PROPRIETARIOS (ID_USUARIO, PERCENTUAL_REPASSE) VALUES (3, 150.00);
+
+-- Teste 015 | DOCUMENTOS_PESSOAS | TIPO + NUMERO únicos (CPF repetido)
+-- Esperado: ERRO
+INSERT INTO DOCUMENTOS_PESSOAS (ID_USUARIO, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, ORGAO_EMISSOR, UF_EMISSAO, DATA_EMISSAO) VALUES (2, 'CPF', '10000000001', 'SSP', 'SP', '2010-01-01');
+
+-- Teste 016 | DOCUMENTOS_PESSOAS | DATA_VALIDADE não pode ser anterior à emissão
+-- Esperado: ERRO
+INSERT INTO DOCUMENTOS_PESSOAS (ID_USUARIO, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, ORGAO_EMISSOR, UF_EMISSAO, DATA_EMISSAO, DATA_VALIDADE) VALUES (2, 'RG', '999', 'SSP', 'SP', '2020-01-01', '2019-01-01');
+
+-- Teste 017 | DOCUMENTOS_PESSOAS | TIPO_DOCUMENTO fora da lista (os valores antigos 'fisica'/'juridica' não valem mais)
+-- Esperado: ERRO
+INSERT INTO DOCUMENTOS_PESSOAS (ID_USUARIO, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, ORGAO_EMISSOR, UF_EMISSAO, DATA_EMISSAO) VALUES (2, 'fisica', '123', 'SSP', 'SP', '2010-01-01');
+
+-- Teste 018 | IMOVEIS | nome único por proprietário
+-- Esperado: ERRO
+INSERT INTO IMOVEIS (ID_PROPRIETARIO, NOME, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF) VALUES (1, 'Edifício Central Corporate', '01310100', 'Rua A', '1', 'Centro', 'São Paulo', 'SP');
+
+-- Teste 019 | SALAS | CAPACIDADE maior que zero
+-- Esperado: ERRO
+INSERT INTO SALAS (ID_IMOVEL, ID_TIPO_SALA, NOME, CAPACIDADE, VALOR_HORA) VALUES (1, 1, 'Sala Teste', 0, 50.00);
+
+-- Teste 020 | SALAS | VALOR_HORA não negativo
+-- Esperado: ERRO
+INSERT INTO SALAS (ID_IMOVEL, ID_TIPO_SALA, NOME, CAPACIDADE, VALOR_HORA) VALUES (1, 1, 'Sala Teste', 4, -10.00);
+
+-- Teste 021 | SALAS | nome único por imóvel
+-- Esperado: ERRO
+INSERT INTO SALAS (ID_IMOVEL, ID_TIPO_SALA, NOME, CAPACIDADE, VALOR_HORA) VALUES (1, 1, 'Sala Aurora', 4, 50.00);
+
+-- Teste 022 | EQUIPAMENTOS_SALAS | QUANTIDADE maior que zero
+-- Esperado: ERRO
+INSERT INTO EQUIPAMENTOS_SALAS (ID_SALA, ID_EQUIPAMENTO, QUANTIDADE) VALUES (6, 1, 0);
+
+-- Teste 023 | REGRAS_HORARIO_FUNCIONAMENTO | DIA_SEMANA entre 1 e 7
+-- Esperado: ERRO
+INSERT INTO REGRAS_HORARIO_FUNCIONAMENTO (ID_SALA, DIA_SEMANA, HORARIO_ABERTURA, HORARIO_FECHAMENTO) VALUES (1, 8, '08:00:00', '18:00:00');
+
+-- Teste 024 | REGRAS_HORARIO_FUNCIONAMENTO | sala + dia + início de vigência únicos
+-- Esperado: ERRO
+INSERT INTO REGRAS_HORARIO_FUNCIONAMENTO (ID_SALA, DIA_SEMANA, HORARIO_ABERTURA, HORARIO_FECHAMENTO, DATA_INICIO_VIGENCIA) VALUES (1, 1, '09:00:00', '17:00:00', '2026-01-01');
+
+-- Teste 025 | REGRAS_HORARIO_FUNCIONAMENTO | DATA_FIM_VIGENCIA não pode anteceder o início
+-- Esperado: ERRO
+INSERT INTO REGRAS_HORARIO_FUNCIONAMENTO (ID_SALA, DIA_SEMANA, HORARIO_ABERTURA, HORARIO_FECHAMENTO, DATA_INICIO_VIGENCIA, DATA_FIM_VIGENCIA) VALUES (6, 2, '08:00:00', '12:00:00', '2026-06-01', '2026-05-01');
+
+-- Teste 026 | HORARIOS_FUNCIONAMENTO_IMOVEIS | dia fechado não pode ter horários (altera a linha 1, que é um dia aberto)
+-- Esperado: ERRO
+UPDATE HORARIOS_FUNCIONAMENTO_IMOVEIS SET ESTA_FECHADO = TRUE WHERE ID_HORARIO_IMOVEL = 1;
+
+-- Teste 027 | HORARIOS_FUNCIONAMENTO_IMOVEIS | fechamento deve ser posterior à abertura (linha 1 abre 07:30)
+-- Esperado: ERRO
+UPDATE HORARIOS_FUNCIONAMENTO_IMOVEIS SET HORARIO_FECHAMENTO = '07:00:00' WHERE ID_HORARIO_IMOVEL = 1;
+
+-- Teste 028 | BLOQUEIOS_MANUAIS_SALAS | fim deve ser posterior ao início
+-- Esperado: ERRO
+INSERT INTO BLOQUEIOS_MANUAIS_SALAS (ID_SALA, ID_USUARIO, DATA_HORA_INICIO, DATA_HORA_FIM, MOTIVO) VALUES (1, 8, '2026-12-01 12:00:00', '2026-12-01 10:00:00', 'Teste');
+
+-- Teste 029 | RESERVAS | DATA_HORA_FIM deve ser posterior ao início
+-- Esperado: ERRO
+INSERT INTO RESERVAS (ID_CLIENTE, ID_SALA, ID_IMOVEL, ID_PROPRIETARIO, DATA_HORA_INICIO, DATA_HORA_FIM, VALOR_TOTAL) VALUES (1, 1, 1, 1, '2026-12-10 12:00:00', '2026-12-10 10:00:00', 100.00);
+
+-- Teste 030 | RESERVAS | CANCELADA exige DATA_CANCELAMENTO e MOTIVO_CANCELAMENTO
+-- Esperado: ERRO
+INSERT INTO RESERVAS (ID_CLIENTE, ID_SALA, ID_IMOVEL, ID_PROPRIETARIO, DATA_HORA_INICIO, DATA_HORA_FIM, VALOR_TOTAL, STATUS) VALUES (1, 1, 1, 1, '2026-12-10 10:00:00', '2026-12-10 12:00:00', 100.00, 'CANCELADA');
+
+-- Teste 031 | RESERVAS | VALOR_TOTAL não negativo
+-- Esperado: ERRO
+INSERT INTO RESERVAS (ID_CLIENTE, ID_SALA, ID_IMOVEL, ID_PROPRIETARIO, DATA_HORA_INICIO, DATA_HORA_FIM, VALOR_TOTAL) VALUES (1, 1, 1, 1, '2026-12-10 10:00:00', '2026-12-10 12:00:00', -50.00);
+
+-- Teste 032 | RESERVAS | FK: cliente inexistente
+-- Esperado: ERRO
+INSERT INTO RESERVAS (ID_CLIENTE, ID_SALA, ID_IMOVEL, ID_PROPRIETARIO, DATA_HORA_INICIO, DATA_HORA_FIM, VALOR_TOTAL) VALUES (999, 1, 1, 1, '2026-12-10 10:00:00', '2026-12-10 12:00:00', 100.00);
+
+-- Teste 033 | RESERVAS | STATUS fora da lista
+-- Esperado: ERRO
+INSERT INTO RESERVAS (ID_CLIENTE, ID_SALA, ID_IMOVEL, ID_PROPRIETARIO, DATA_HORA_INICIO, DATA_HORA_FIM, VALOR_TOTAL, STATUS) VALUES (1, 1, 1, 1, '2026-12-10 10:00:00', '2026-12-10 12:00:00', 100.00, 'ADIADA');
+
+-- Teste 034 | CHECKIN | um check-in por reserva
+-- Esperado: ERRO
+INSERT INTO CHECKIN (ID_RESERVA, ID_FUNCIONARIO, DATA_HORA_CHECKIN) VALUES (1, 1, '2026-10-13 09:00:00');
+
+-- Teste 035 | CHECKOUT | um check-out por reserva
+-- Esperado: ERRO
+INSERT INTO CHECKOUT (ID_RESERVA, ID_FUNCIONARIO, DATA_HORA_CHECKOUT) VALUES (1, 1, '2026-10-13 12:30:00');
+
+-- Teste 036 | PRODUTOS | CUSTO_UNITARIO não negativo
+-- Esperado: ERRO
+INSERT INTO PRODUTOS (ID_CATEGORIA, NOME, UNIDADE_MEDIDA, CUSTO_UNITARIO) VALUES (1, 'Produto Teste', 'UNIDADE', -1.00);
+
+-- Teste 037 | ORDENS_MANUTENCAO | conclusão não pode anteceder o início
+-- Esperado: ERRO
+INSERT INTO ORDENS_MANUTENCAO (ID_SALA, DESCRICAO_PROBLEMA, DATA_INICIO, DATA_CONCLUSAO) VALUES (1, 'Teste', '2026-10-10 10:00:00', '2026-10-09 10:00:00');
+
+-- Teste 038 | PRODUTOS_FORNECEDORES | produto + fornecedor únicos
+-- Esperado: ERRO
+INSERT INTO PRODUTOS_FORNECEDORES (ID_PRODUTO, ID_FORNECEDOR, PRECO_COMPRA) VALUES (1, 1, 10.00);
+
+-- Teste 039 | PRODUTOS_FORNECEDORES | código do produto único dentro do fornecedor
+-- Esperado: ERRO
+INSERT INTO PRODUTOS_FORNECEDORES (ID_PRODUTO, ID_FORNECEDOR, CODIGO_PRODUTO_FORNECEDOR, PRECO_COMPRA) VALUES (2, 2, 'PC-COPO-200', 5.00);
+
+-- Teste 040 | FORNECEDORES | DOCUMENTO_FISCAL único
+-- Esperado: ERRO
+INSERT INTO FORNECEDORES (RAZAO_SOCIAL, TIPO_PESSOA, DOCUMENTO_FISCAL) VALUES ('Fornecedor Teste', 'JURIDICA', '11222333000181');
+
+-- Teste 041 | PEDIDOS_COMPRA | entrega prevista não pode anteceder o pedido
+-- Esperado: ERRO
+INSERT INTO PEDIDOS_COMPRA (ID_FORNECEDOR, ID_USUARIO, DATA_PEDIDO, DATA_PREVISTA_ENTREGA) VALUES (1, 8, '2026-10-10 10:00:00', '2026-10-01');
+
+-- Teste 042 | ITENS_PEDIDO_COMPRA | QUANTIDADE maior que zero
+-- Esperado: ERRO
+INSERT INTO ITENS_PEDIDO_COMPRA (ID_PEDIDO_COMPRA, ID_PRODUTO, QUANTIDADE, PRECO_UNITARIO) VALUES (4, 2, 0, 3.90);
+
+-- Teste 043 | ITENS_PEDIDO_COMPRA | pedido + produto únicos
+-- Esperado: ERRO
+INSERT INTO ITENS_PEDIDO_COMPRA (ID_PEDIDO_COMPRA, ID_PRODUTO, QUANTIDADE, PRECO_UNITARIO) VALUES (1, 1, 5, 17.50);
+
+-- Teste 044 | CONTAS_BANCARIAS_PROPRIETARIOS | CHAVE_PIX única
+-- Esperado: ERRO
+INSERT INTO CONTAS_BANCARIAS_PROPRIETARIOS (ID_PROPRIETARIO, BANCO, TIPO_CONTA, CHAVE_PIX, TITULAR, DOCUMENTO_TITULAR) VALUES (2, 'Banco X', 'CORRENTE', 'fabio.nunes@exemplo.com.br', 'Teste', '1');
+
+-- Teste 045 | CONTAS_BANCARIAS_PROPRIETARIOS | mesma conta (banco, agência, número, dígito) para o mesmo proprietário
+-- Esperado: ERRO
+INSERT INTO CONTAS_BANCARIAS_PROPRIETARIOS (ID_PROPRIETARIO, BANCO, AGENCIA, NUMERO_CONTA, DIGITO_CONTA, TIPO_CONTA, TITULAR, DOCUMENTO_TITULAR) VALUES (1, 'Banco Exemplo', '0001', '12345', '6', 'CORRENTE', 'Teste', '1');
+
+-- Teste 046 | REGRAS_CANCELAMENTO | PERCENTUAL_REEMBOLSO entre 0 e 100
+-- Esperado: ERRO
+INSERT INTO REGRAS_CANCELAMENTO (ID_IMOVEL, NOME, PRAZO_LIMITE_HORAS, PERCENTUAL_REEMBOLSO, MULTA_PERCENTUAL, DATA_INICIO_VIGENCIA) VALUES (1, 'Teste', 24, 120.00, 0.00, '2026-01-01');
+
+-- Teste 047 | TAXAS | DATA_FIM_VIGENCIA não pode anteceder o início
+-- Esperado: ERRO
+INSERT INTO TAXAS (NOME, TIPO_TAXA, VALOR, DATA_INICIO_VIGENCIA, DATA_FIM_VIGENCIA) VALUES ('Teste', 'FIXA', 10.00, '2026-02-01', '2026-01-01');
+
+-- Teste 048 | USUARIOS | FK RESTRICT: não exclui usuário que tem registros ligados
+-- Esperado: ERRO
+DELETE FROM USUARIOS WHERE ID_USUARIO = 1;
+
+-- =====================================================================
+-- B) CHAVES PRIMÁRIAS
+-- =====================================================================
+
+-- Teste 049 | BLOQUEIOS_MANUAIS_SALAS | PK ID_BLOQUEIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `BLOQUEIOS_MANUAIS_SALAS` (`ID_BLOQUEIO`, `ID_SALA`, `ID_USUARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `MOTIVO`, `STATUS`)
+VALUES (1, 4, 8, '2026-11-02 08:00:00', '2026-11-06 18:00:00', 'Troca do ar-condicionado', 'ATIVO');
+
+-- Teste 050 | CATEGORIAS_PRODUTOS | PK ID_CATEGORIA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CATEGORIAS_PRODUTOS` (`ID_CATEGORIA`, `NOME`, `DESCRICAO`, `GESTOR`)
+VALUES (1, 'Limpeza', 'Produtos de limpeza e higiene', 'Elisa Rocha');
+
+-- Teste 051 | CHECKIN | PK ID_CHECKIN repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CHECKIN` (`ID_CHECKIN`, `ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKIN`, `OBSERVACOES`, `STATUS`)
+VALUES (1, 1, 1, '2026-10-13 08:55:00', 'Sala em ordem', 'REALIZADO');
+
+-- Teste 052 | CHECKOUT | PK ID_CHECKOUT repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CHECKOUT` (`ID_CHECKOUT`, `ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKOUT`, `OBSERVACOES`, `DANOS_IDENTIFICADOS`, `STATUS`)
+VALUES (1, 1, 1, '2026-10-13 12:05:00', NULL, NULL, 'REALIZADO');
+
+-- Teste 053 | CLIENTES | PK ID_CLIENTE repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CLIENTES` (`ID_CLIENTE`, `ID_USUARIO`, `DATA_CADASTRO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 1, '2026-10-27 16:30:53', 'ATIVO', 'Cliente frequente, prefere salas de reunião');
+
+-- Teste 054 | CONTAS_BANCARIAS_PROPRIETARIOS | PK ID_CONTA_BANCARIA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CONTAS_BANCARIAS_PROPRIETARIOS` (`ID_CONTA_BANCARIA`, `ID_PROPRIETARIO`, `BANCO`, `AGENCIA`, `NUMERO_CONTA`, `DIGITO_CONTA`, `TIPO_CONTA`, `CHAVE_PIX`, `TITULAR`, `DOCUMENTO_TITULAR`, `PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 'Banco Exemplo', '0001', '12345', '6', 'CORRENTE', 'fabio.nunes@exemplo.com.br', 'Fábio Nunes', '10000000006', 1, 'ATIVO');
+
+-- Teste 055 | CONTAS_FINANCEIRAS | PK ID_CONTA_FINANCEIRA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `CONTAS_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `NOME`, `TIPO_CONTA`, `INSTITUICAO`, `SALDO_INICIAL`, `STATUS`)
+VALUES (1, 'Caixa Geral', 'CAIXA', NULL, 1000.00, 'ATIVO');
+
+-- Teste 056 | DOCUMENTOS_PESSOAS | PK ID_DOCUMENTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `DOCUMENTOS_PESSOAS` (`ID_DOCUMENTO`, `ID_USUARIO`, `TIPO_DOCUMENTO`, `NUMERO_DOCUMENTO`, `ORGAO_EMISSOR`, `UF_EMISSAO`, `DATA_EMISSAO`, `DATA_VALIDADE`, `PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 'CPF', '10000000001', 'SSP', 'SP', '2010-05-10', NULL, 1, 'ATIVO');
+
+-- Teste 057 | EMAILS_FORNECEDORES | PK ID_EMAIL_FORNECEDOR repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `EMAILS_FORNECEDORES` (`ID_EMAIL_FORNECEDOR`, `ID_FORNECEDOR`, `ENDERECO_EMAIL`, `PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 'vendas@limpatudo.example.com', 1, 'ATIVO');
+
+-- Teste 058 | EMAILS_USUARIOS | PK ID_EMAIL_USUARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `EMAILS_USUARIOS` (`ID_EMAIL_USUARIO`, `ID_USUARIO`, `ENDERECO_EMAIL`, `PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 'ana.souza@exemplo.com.br', 1, 'ATIVO');
+
+-- Teste 059 | ENDERECOS_FORNECEDORES | PK ID_ENDERECO_FORNECEDOR repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ENDERECOS_FORNECEDORES` (`ID_ENDERECO_FORNECEDOR`, `ID_FORNECEDOR`, `TIPO_ENDERECO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 'COMERCIAL', '03047000', 'Rua do Gasômetro', '120', NULL, 'Brás', 'São Paulo', 'SP', 'Brasil', 1, 'ATIVO');
+
+-- Teste 060 | ENDERECOS_USUARIOS | PK ID_ENDERECO_USUARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ENDERECOS_USUARIOS` (`ID_ENDERECO_USUARIO`, `ID_USUARIO`, `TIPO_ENDERECO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `PRINCIPAL`)
+VALUES (1, 1, 'RESIDENCIAL', '01310100', 'Avenida Paulista', '1000', 'Apto 51', 'Bela Vista', 'São Paulo', 'SP', 'Brasil', 1);
+
+-- Teste 061 | EQUIPAMENTOS | PK ID_EQUIPAMENTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `EQUIPAMENTOS` (`ID_EQUIPAMENTO`, `NOME`, `DESCRICAO`, `CATEGORIA`, `STATUS`)
+VALUES (1, 'Projetor Full HD', 'Projetor com HDMI', 'Audiovisual', 'ATIVO');
+
+-- Teste 062 | EQUIPAMENTOS_SALAS | PK composta (ID_SALA + ID_EQUIPAMENTO) repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `EQUIPAMENTOS_SALAS` (`ID_SALA`, `ID_EQUIPAMENTO`, `QUANTIDADE`, `DATA_INSTALACAO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 2, 1, '2024-03-10', 'ATIVO', NULL);
+
+-- Teste 063 | EVIDENCIAS_VISTORIA_MANUTENCAO | PK ID_EVIDENCIA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_EVIDENCIA`, `ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (1, 1, NULL, NULL, NULL, 4, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 064 | FORNECEDORES | PK ID_FORNECEDOR repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `FORNECEDORES` (`ID_FORNECEDOR`, `RAZAO_SOCIAL`, `NOME_FANTASIA`, `TIPO_PESSOA`, `DOCUMENTO_FISCAL`, `STATUS`)
+VALUES (1, 'Limpa Tudo Distribuidora Ltda', 'Limpa Tudo', 'JURIDICA', '11222333000181', 'ATIVO');
+
+-- Teste 065 | FUNCIONARIOS | PK ID_FUNCIONARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `FUNCIONARIOS` (`ID_FUNCIONARIO`, `ID_USUARIO`, `CARGO`, `DATA_ADMISSAO`, `DATA_DEMISSAO`, `STATUS`)
+VALUES (1, 4, 'Recepcionista', '2022-03-01', NULL, 'ATIVO');
+
+-- Teste 066 | HORARIOS_FUNCIONAMENTO_IMOVEIS | PK ID_HORARIO_IMOVEL repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `HORARIOS_FUNCIONAMENTO_IMOVEIS` (`ID_HORARIO_IMOVEL`, `ID_IMOVEL`, `DIA_SEMANA`, `HORARIO_ABERTURA`, `HORARIO_FECHAMENTO`, `ESTA_FECHADO`)
+VALUES (1, 1, 1, '07:30:00', '19:00:00', 0);
+
+-- Teste 067 | IMOVEIS | PK ID_IMOVEL repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `IMOVEIS` (`ID_IMOVEL`, `ID_PROPRIETARIO`, `NOME`, `DESCRICAO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `STATUS`)
+VALUES (1, 1, 'Edifício Central Corporate', 'Prédio comercial com 3 salas e auditório', '01310100', 'Avenida Paulista', '2000', NULL, 'Bela Vista', 'São Paulo', 'SP', 'Brasil', 'ATIVO');
+
+-- Teste 068 | ITENS_PEDIDO_COMPRA | PK ID_ITEM_PEDIDO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ITENS_PEDIDO_COMPRA` (`ID_ITEM_PEDIDO`, `ID_PEDIDO_COMPRA`, `ID_PRODUTO`, `QUANTIDADE`, `PRECO_UNITARIO`)
+VALUES (1, 1, 1, 20.000, 17.50);
+
+-- Teste 069 | ITENS_RECEBIMENTO | PK ID_ITEM_RECEBIMENTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ITENS_RECEBIMENTO` (`ID_ITEM_RECEBIMENTO`, `ID_RECEBIMENTO`, `ID_ITEM_PEDIDO`, `ID_PRODUTO`, `QUANTIDADE_RECEBIDA`, `PRECO_UNITARIO_RECEBIDO`, `DATA_VALIDADE`, `LOTE`, `OBSERVACOES`)
+VALUES (1, 1, 1, 1, 20.000, 17.50, '2028-10-01', 'L2026-10A', NULL);
+
+-- Teste 070 | MOVIMENTACOES_ESTOQUE | PK ID_MOVIMENTACAO_ESTOQUE repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `MOVIMENTACOES_ESTOQUE` (`ID_MOVIMENTACAO_ESTOQUE`, `ID_PRODUTO`, `ID_USUARIO`, `TIPO_MOVIMENTACAO`, `QUANTIDADE`, `DATA_MOVIMENTACAO`, `MOTIVO`, `CUSTO_UNITARIO`, `OBSERVACOES`)
+VALUES (1, 1, 8, 'ENTRADA', 20.000, '2026-10-07 14:30:00', 'Recebimento do pedido de compra 1', 17.50, NULL);
+
+-- Teste 071 | MOVIMENTACOES_FINANCEIRAS | PK ID_MOVIMENTACAO_FINANCEIRA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_MOVIMENTACAO_FINANCEIRA`, `ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 2, 1, NULL, NULL, NULL, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 072 | ORDENS_LIMPEZA | PK ID_ORDEM_LIMPEZA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ORDENS_LIMPEZA` (`ID_ORDEM_LIMPEZA`, `ID_SALA`, `ID_FUNCIONARIO`, `ID_RESERVA`, `DATA_AGENDADA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 1, 2, 1, '2026-10-13 12:30:00', '2026-10-13 12:35:00', '2026-10-13 13:10:00', 'CONCLUIDA', NULL);
+
+-- Teste 073 | ORDENS_MANUTENCAO | PK ID_ORDEM_MANUTENCAO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `ORDENS_MANUTENCAO` (`ID_ORDEM_MANUTENCAO`, `ID_SALA`, `ID_FUNCIONARIO`, `DESCRICAO_PROBLEMA`, `DATA_ABERTURA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `PRIORIDADE`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 4, 5, 'Ar-condicionado não gela', '2026-10-20 09:00:00', '2026-10-22 08:00:00', NULL, 'ALTA', 'EM_ANDAMENTO', 'Aguardando peça');
+
+-- Teste 074 | PEDIDOS_COMPRA | PK ID_PEDIDO_COMPRA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PEDIDOS_COMPRA` (`ID_PEDIDO_COMPRA`, `ID_FORNECEDOR`, `ID_USUARIO`, `DATA_PEDIDO`, `DATA_PREVISTA_ENTREGA`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 1, 8, '2026-10-02 10:00:00', '2026-10-07', 'RECEBIDO', NULL);
+
+-- Teste 075 | PERFIS | PK ID_PERFIL repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PERFIS` (`ID_PERFIL`, `NOME`, `DESCRICAO`, `STATUS`)
+VALUES (1, 'Administrador', 'Acesso total ao sistema', 'ATIVO');
+
+-- Teste 076 | PERFIS_USUARIOS | PK composta (ID_USUARIO + ID_PERFIL) repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PERFIS_USUARIOS` (`ID_USUARIO`, `ID_PERFIL`, `DATA_VINCULO`, `STATUS`)
+VALUES (1, 4, '2026-10-27 16:30:53', 'ATIVO');
+
+-- Teste 077 | PERMISSOES | PK ID_PERMISSAO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PERMISSOES` (`ID_PERMISSAO`, `NOME`, `DESCRICAO`, `RECURSO`, `ACAO`, `STATUS`)
+VALUES (1, 'Consultar reservas', 'Permite consultar reservas', 'RESERVAS', 'CONSULTAR', 'ATIVO');
+
+-- Teste 078 | PERMISSOES_PERFIS | PK composta (ID_PERFIL + ID_PERMISSAO) repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PERMISSOES_PERFIS` (`ID_PERFIL`, `ID_PERMISSAO`, `DATA_VINCULO`, `PERMITIDO`)
+VALUES (1, 1, '2026-10-27 16:30:53', 1);
+
+-- Teste 079 | PRODUTOS | PK ID_PRODUTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PRODUTOS` (`ID_PRODUTO`, `ID_CATEGORIA`, `NOME`, `DESCRICAO`, `UNIDADE_MEDIDA`, `ESTOQUE_MINIMO`, `CUSTO_UNITARIO`, `STATUS`)
+VALUES (1, 1, 'Detergente neutro 5L', NULL, 'LITRO', 5.000, 18.90, 'ATIVO');
+
+-- Teste 080 | PRODUTOS_FORNECEDORES | PK ID_PRODUTO_FORNECEDOR repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PRODUTOS_FORNECEDORES` (`ID_PRODUTO_FORNECEDOR`, `ID_PRODUTO`, `ID_FORNECEDOR`, `CODIGO_PRODUTO_FORNECEDOR`, `PRECO_COMPRA`, `PRAZO_ENTREGA`, `QUANTIDADE_MINIMA_PEDIDO`, `PRODUTO_PRINCIPAL`, `STATUS`)
+VALUES (1, 1, 1, 'LT-DET-5L', 17.50, 3, 2.000, 1, 'ATIVO');
+
+-- Teste 081 | PROPRIETARIOS | PK ID_PROPRIETARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `PROPRIETARIOS` (`ID_PROPRIETARIO`, `ID_USUARIO`, `DATA_CADASTRO`, `PERCENTUAL_REPASSE`, `STATUS`)
+VALUES (1, 6, '2026-10-27 16:30:53', 85.00, 'ATIVO');
+
+-- Teste 082 | RECEBIMENTOS_COMPRA | PK ID_RECEBIMENTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `RECEBIMENTOS_COMPRA` (`ID_RECEBIMENTO`, `ID_PEDIDO_COMPRA`, `ID_USUARIO`, `DATA_RECEBIMENTO`, `NUMERO_DOCUMENTO_RECEBIMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 1, 4, '2026-10-07 14:00:00', 'NF-000123', 'COMPLETO', NULL);
+
+-- Teste 083 | REGRAS_CANCELAMENTO | PK ID_REGRA_CANCELAMENTO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `REGRAS_CANCELAMENTO` (`ID_REGRA_CANCELAMENTO`, `ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `PRAZO_LIMITE_HORAS`, `PERCENTUAL_REEMBOLSO`, `MULTA_PERCENTUAL`, `STATUS`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`)
+VALUES (1, 1, NULL, 'Edifício Central: reembolso total com 48 h', NULL, 48, 100.00, 0.00, 'ATIVO', '2026-01-01', NULL);
+
+-- Teste 084 | REGRAS_GERAIS_CALENDARIO | PK ID_REGRA_CALENDARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `REGRAS_GERAIS_CALENDARIO` (`ID_REGRA_CALENDARIO`, `ID_IMOVEL`, `NOME`, `DESCRICAO`, `TIPO_REGRA`, `DATA_INICIO`, `DATA_FIM`, `RECORRENCIA`, `STATUS`)
+VALUES (1, 1, 'Natal', 'Feriado: imóvel fechado', 'FERIADO', '2026-12-25', '2026-12-25', 'ANUAL', 'ATIVO');
+
+-- Teste 085 | REGRAS_HORARIO_FUNCIONAMENTO | PK ID_REGRA_HORARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `REGRAS_HORARIO_FUNCIONAMENTO` (`ID_REGRA_HORARIO`, `ID_SALA`, `DIA_SEMANA`, `HORARIO_ABERTURA`, `HORARIO_FECHAMENTO`, `ESTA_FECHADO`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`, `STATUS`)
+VALUES (1, 1, 1, '08:00:00', '18:00:00', 0, '2026-01-01', NULL, 'ATIVO');
+
+-- Teste 086 | RESERVAS | PK ID_RESERVA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `RESERVAS` (`ID_RESERVA`, `ID_CLIENTE`, `ID_SALA`, `ID_IMOVEL`, `ID_PROPRIETARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `DATA_RESERVA`, `VALOR_TOTAL`, `STATUS`, `OBSERVACOES`, `DATA_CANCELAMENTO`, `MOTIVO_CANCELAMENTO`)
+VALUES (1, 1, 1, 1, 1, '2026-10-13 09:00:00', '2026-10-13 12:00:00', '2026-10-05 14:00:00', 360.00, 'CONCLUIDA', NULL, NULL, NULL);
+
+-- Teste 087 | SALAS | PK ID_SALA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `SALAS` (`ID_SALA`, `ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `CAPACIDADE`, `VALOR_HORA`, `STATUS`)
+VALUES (1, 1, 1, 'Sala Aurora', NULL, 8, 120.00, 'ATIVO');
+
+-- Teste 088 | TAXAS | PK ID_TAXA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `TAXAS` (`ID_TAXA`, `NOME`, `DESCRICAO`, `TIPO_TAXA`, `VALOR`, `PERCENTUAL`, `STATUS`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`)
+VALUES (1, 'Taxa de limpeza', 'Valor fixo por reserva', 'FIXA', 50.00, NULL, 'ATIVO', '2026-01-01', NULL);
+
+-- Teste 089 | TELEFONES_FORNECEDORES | PK ID_TELEFONE_FORNECEDOR repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `TELEFONES_FORNECEDORES` (`ID_TELEFONE_FORNECEDOR`, `ID_FORNECEDOR`, `NUMERO_TELEFONE`, `TIPO_TELEFONE`, `PRINCIPAL`, `STATUS`)
+VALUES ('1-1140041001', 1, '1140041001', 'COMERCIAL', 1, 'ATIVO');
+
+-- Teste 090 | TELEFONES_USUARIOS | PK ID_TELEFONE_USUARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `TELEFONES_USUARIOS` (`ID_TELEFONE_USUARIO`, `ID_USUARIO`, `NUMERO_TELEFONE`, `TIPO_TELEFONE`, `PRINCIPAL`, `STATUS`)
+VALUES ('1-1133334444', 1, '1133334444', 'RESIDENCIAL', 0, 'ATIVO');
+
+-- Teste 091 | TIPOS_SALA | PK ID_TIPO_SALA repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `TIPOS_SALA` (`ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `STATUS`)
+VALUES (1, 'Sala de Reunião', 'Reuniões e entrevistas', 'ATIVO');
+
+-- Teste 092 | USO_MATERIAIS_LIMPEZA | PK ID_USO_MATERIAL repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `USO_MATERIAIS_LIMPEZA` (`ID_USO_MATERIAL`, `ID_ORDEM_LIMPEZA`, `ID_PRODUTO`, `QUANTIDADE_UTILIZADA`, `DATA_UTILIZACAO`, `OBSERVACOES`)
+VALUES (1, 1, 1, 0.250, '2026-10-13 12:40:00', NULL);
+
+-- Teste 093 | USUARIOS | PK ID_USUARIO repetida: copia uma linha que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `USUARIOS` (`ID_USUARIO`, `NOME`, `STATUS`, `DATA_INATIVACAO`)
+VALUES (1, 'Ana Souza', 'ATIVO', NULL);
+
+-- Teste 094 | EQUIPAMENTOS_SALAS | PK composta não aceita NULL em ID_SALA
+-- Esperado: ERRO 1048 (coluna não aceita NULL)
+INSERT INTO `EQUIPAMENTOS_SALAS` (`ID_SALA`, `ID_EQUIPAMENTO`, `QUANTIDADE`, `DATA_INSTALACAO`, `STATUS`, `OBSERVACOES`)
+VALUES (NULL, 2, 1, '2024-03-10', 'ATIVO', NULL);
+
+-- Teste 095 | PERFIS_USUARIOS | PK composta não aceita NULL em ID_USUARIO
+-- Esperado: ERRO 1048 (coluna não aceita NULL)
+INSERT INTO `PERFIS_USUARIOS` (`ID_USUARIO`, `ID_PERFIL`, `DATA_VINCULO`, `STATUS`)
+VALUES (NULL, 4, '2026-10-27 16:30:53', 'ATIVO');
+
+-- Teste 096 | PERMISSOES_PERFIS | PK composta não aceita NULL em ID_PERFIL
+-- Esperado: ERRO 1048 (coluna não aceita NULL)
+INSERT INTO `PERMISSOES_PERFIS` (`ID_PERFIL`, `ID_PERMISSAO`, `DATA_VINCULO`, `PERMITIDO`)
+VALUES (NULL, 1, '2026-10-27 16:30:53', 1);
+
+-- Teste 097 | USUARIOS | PK numérica não aceita texto
+-- Esperado: ERRO 1366 (valor com tipo errado)
+INSERT INTO `USUARIOS` (`ID_USUARIO`, `NOME`)
+VALUES ('abc', 'Teste');
+
+-- Teste 098 | USUARIOS | PK AUTO_INCREMENT: o valor 1 já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+INSERT INTO `USUARIOS` (`ID_USUARIO`, `NOME`)
+VALUES (1, 'Teste com PK repetida');
+
+-- Teste 099 | USUARIOS | alterar a PK de um registro que tem filhos (RESTRICT)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+UPDATE `USUARIOS` SET `ID_USUARIO` = 500 WHERE `ID_USUARIO` = 1;
+
+-- Teste 100 | TAXAS | alterar a PK para um valor que já existe
+-- Esperado: ERRO 1062 (valor duplicado)
+UPDATE `TAXAS` SET `ID_TAXA` = 2 WHERE `ID_TAXA` = 1;
+
+-- =====================================================================
+-- C) REGISTROS ÓRFÃOS: FK apontando para algo que não existe
+-- =====================================================================
+
+-- Teste 101 | BLOQUEIOS_MANUAIS_SALAS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `BLOQUEIOS_MANUAIS_SALAS` (`ID_SALA`, `ID_USUARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `MOTIVO`, `STATUS`)
+VALUES (4, 999999, '2026-11-02 08:00:00', '2026-11-06 18:00:00', 'Troca do ar-condicionado', 'ATIVO');
+
+-- Teste 102 | BLOQUEIOS_MANUAIS_SALAS | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `BLOQUEIOS_MANUAIS_SALAS` (`ID_SALA`, `ID_USUARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `MOTIVO`, `STATUS`)
+VALUES (999999, 8, '2026-11-02 08:00:00', '2026-11-06 18:00:00', 'Troca do ar-condicionado', 'ATIVO');
+
+-- Teste 103 | CHECKIN | FK órfã: ID_RESERVA = 999999 não existe em RESERVAS.ID_RESERVA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CHECKIN` (`ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKIN`, `OBSERVACOES`, `STATUS`)
+VALUES (999999, 1, '2026-10-13 08:55:00', 'Sala em ordem', 'REALIZADO');
+
+-- Teste 104 | CHECKIN | FK órfã: ID_FUNCIONARIO = 999999 não existe em FUNCIONARIOS.ID_FUNCIONARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CHECKIN` (`ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKIN`, `OBSERVACOES`, `STATUS`)
+VALUES (4, 999999, '2026-10-13 08:55:00', 'Sala em ordem', 'REALIZADO');
+
+-- Teste 105 | CHECKOUT | FK órfã: ID_RESERVA = 999999 não existe em RESERVAS.ID_RESERVA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CHECKOUT` (`ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKOUT`, `OBSERVACOES`, `DANOS_IDENTIFICADOS`, `STATUS`)
+VALUES (999999, 1, '2026-10-13 12:05:00', NULL, NULL, 'REALIZADO');
+
+-- Teste 106 | CHECKOUT | FK órfã: ID_FUNCIONARIO = 999999 não existe em FUNCIONARIOS.ID_FUNCIONARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CHECKOUT` (`ID_RESERVA`, `ID_FUNCIONARIO`, `DATA_HORA_CHECKOUT`, `OBSERVACOES`, `DANOS_IDENTIFICADOS`, `STATUS`)
+VALUES (3, 999999, '2026-10-13 12:05:00', NULL, NULL, 'REALIZADO');
+
+-- Teste 107 | CLIENTES | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CLIENTES` (`ID_USUARIO`, `DATA_CADASTRO`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, '2026-10-27 16:30:53', 'ATIVO', 'Cliente frequente, prefere salas de reunião');
+
+-- Teste 108 | CONTAS_BANCARIAS_PROPRIETARIOS | FK órfã: ID_PROPRIETARIO = 999999 não existe em PROPRIETARIOS.ID_PROPRIETARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `CONTAS_BANCARIAS_PROPRIETARIOS` (`ID_PROPRIETARIO`, `BANCO`, `AGENCIA`, `NUMERO_CONTA`, `DIGITO_CONTA`, `TIPO_CONTA`, `CHAVE_PIX`, `TITULAR`, `DOCUMENTO_TITULAR`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, 'Banco Exemplo', '0001', '12345', '6', 'CORRENTE', 'ORFAO-364', 'Fábio Nunes', '10000000006', 1, 'ATIVO');
+
+-- Teste 109 | DOCUMENTOS_PESSOAS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `DOCUMENTOS_PESSOAS` (`ID_USUARIO`, `TIPO_DOCUMENTO`, `NUMERO_DOCUMENTO`, `ORGAO_EMISSOR`, `UF_EMISSAO`, `DATA_EMISSAO`, `DATA_VALIDADE`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, 'CPF', 'ORFAO-432', 'SSP', 'SP', '2010-05-10', NULL, 1, 'ATIVO');
+
+-- Teste 110 | EMAILS_FORNECEDORES | FK órfã: ID_FORNECEDOR = 999999 não existe em FORNECEDORES.ID_FORNECEDOR
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EMAILS_FORNECEDORES` (`ID_FORNECEDOR`, `ENDERECO_EMAIL`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, 'vendas@limpatudo.example.com', 1, 'ATIVO');
+
+-- Teste 111 | EMAILS_USUARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EMAILS_USUARIOS` (`ID_USUARIO`, `ENDERECO_EMAIL`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, 'ORFAO-260', 1, 'ATIVO');
+
+-- Teste 112 | ENDERECOS_FORNECEDORES | FK órfã: ID_FORNECEDOR = 999999 não existe em FORNECEDORES.ID_FORNECEDOR
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ENDERECOS_FORNECEDORES` (`ID_FORNECEDOR`, `TIPO_ENDERECO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, 'COMERCIAL', '03047000', 'Rua do Gasômetro', '120', NULL, 'Brás', 'São Paulo', 'SP', 'Brasil', 1, 'ATIVO');
+
+-- Teste 113 | ENDERECOS_USUARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ENDERECOS_USUARIOS` (`ID_USUARIO`, `TIPO_ENDERECO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `PRINCIPAL`)
+VALUES (999999, 'RESIDENCIAL', '01310100', 'Avenida Paulista', '1000', 'Apto 51', 'Bela Vista', 'São Paulo', 'SP', 'Brasil', 1);
+
+-- Teste 114 | EQUIPAMENTOS_SALAS | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EQUIPAMENTOS_SALAS` (`ID_SALA`, `ID_EQUIPAMENTO`, `QUANTIDADE`, `DATA_INSTALACAO`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 2, 1, '2024-03-10', 'ATIVO', NULL);
+
+-- Teste 115 | EQUIPAMENTOS_SALAS | FK órfã: ID_EQUIPAMENTO = 999999 não existe em EQUIPAMENTOS.ID_EQUIPAMENTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EQUIPAMENTOS_SALAS` (`ID_SALA`, `ID_EQUIPAMENTO`, `QUANTIDADE`, `DATA_INSTALACAO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 999999, 1, '2024-03-10', 'ATIVO', NULL);
+
+-- Teste 116 | EVIDENCIAS_VISTORIA_MANUTENCAO | FK órfã: ID_CHECKOUT = 999999 não existe em CHECKOUT.ID_CHECKOUT
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (1, 999999, NULL, NULL, 4, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 117 | EVIDENCIAS_VISTORIA_MANUTENCAO | FK órfã: ID_CHECKIN = 999999 não existe em CHECKIN.ID_CHECKIN
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (999999, NULL, NULL, NULL, 4, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 118 | EVIDENCIAS_VISTORIA_MANUTENCAO | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (1, NULL, NULL, NULL, 999999, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 119 | EVIDENCIAS_VISTORIA_MANUTENCAO | FK órfã: ID_ORDEM_MANUTENCAO = 999999 não existe em ORDENS_MANUTENCAO.ID_ORDEM_MANUTENCAO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (1, NULL, 999999, NULL, 4, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 120 | EVIDENCIAS_VISTORIA_MANUTENCAO | FK órfã: ID_ORDEM_LIMPEZA = 999999 não existe em ORDENS_LIMPEZA.ID_ORDEM_LIMPEZA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `EVIDENCIAS_VISTORIA_MANUTENCAO` (`ID_CHECKIN`, `ID_CHECKOUT`, `ID_ORDEM_MANUTENCAO`, `ID_ORDEM_LIMPEZA`, `ID_USUARIO`, `TIPO_EVIDENCIA`, `DESCRICAO`, `CAMINHO_ARQUIVO`, `DATA_REGISTRO`, `OBSERVACOES`)
+VALUES (1, NULL, NULL, 999999, 4, 'FOTO', 'Sala em ordem antes do uso', '/evidencias/checkin/1/foto1.jpg', '2026-10-27 16:30:53', NULL);
+
+-- Teste 121 | FUNCIONARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `FUNCIONARIOS` (`ID_USUARIO`, `CARGO`, `DATA_ADMISSAO`, `DATA_DEMISSAO`, `STATUS`)
+VALUES (999999, 'Recepcionista', '2022-03-01', NULL, 'ATIVO');
+
+-- Teste 122 | HORARIOS_FUNCIONAMENTO_IMOVEIS | FK órfã: ID_IMOVEL = 999999 não existe em IMOVEIS.ID_IMOVEL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `HORARIOS_FUNCIONAMENTO_IMOVEIS` (`ID_IMOVEL`, `DIA_SEMANA`, `HORARIO_ABERTURA`, `HORARIO_FECHAMENTO`, `ESTA_FECHADO`)
+VALUES (999999, 1, '07:30:00', '19:00:00', 0);
+
+-- Teste 123 | IMOVEIS | FK órfã: ID_PROPRIETARIO = 999999 não existe em PROPRIETARIOS.ID_PROPRIETARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `IMOVEIS` (`ID_PROPRIETARIO`, `NOME`, `DESCRICAO`, `CEP`, `LOGRADOURO`, `NUMERO`, `COMPLEMENTO`, `BAIRRO`, `CIDADE`, `UF`, `PAIS`, `STATUS`)
+VALUES (999999, 'Edifício Central Corporate', 'Prédio comercial com 3 salas e auditório', '01310100', 'Avenida Paulista', '2000', NULL, 'Bela Vista', 'São Paulo', 'SP', 'Brasil', 'ATIVO');
+
+-- Teste 124 | ITENS_PEDIDO_COMPRA | FK órfã: ID_PEDIDO_COMPRA = 999999 não existe em PEDIDOS_COMPRA.ID_PEDIDO_COMPRA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ITENS_PEDIDO_COMPRA` (`ID_PEDIDO_COMPRA`, `ID_PRODUTO`, `QUANTIDADE`, `PRECO_UNITARIO`)
+VALUES (999999, 1, 20.000, 17.50);
+
+-- Teste 125 | ITENS_PEDIDO_COMPRA | FK órfã: ID_PRODUTO = 999999 não existe em PRODUTOS.ID_PRODUTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ITENS_PEDIDO_COMPRA` (`ID_PEDIDO_COMPRA`, `ID_PRODUTO`, `QUANTIDADE`, `PRECO_UNITARIO`)
+VALUES (1, 999999, 20.000, 17.50);
+
+-- Teste 126 | ITENS_RECEBIMENTO | FK órfã: ID_PRODUTO = 999999 não existe em PRODUTOS.ID_PRODUTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ITENS_RECEBIMENTO` (`ID_RECEBIMENTO`, `ID_ITEM_PEDIDO`, `ID_PRODUTO`, `QUANTIDADE_RECEBIDA`, `PRECO_UNITARIO_RECEBIDO`, `DATA_VALIDADE`, `LOTE`, `OBSERVACOES`)
+VALUES (1, 1, 999999, 20.000, 17.50, '2028-10-01', 'L2026-10A', NULL);
+
+-- Teste 127 | ITENS_RECEBIMENTO | FK órfã: ID_ITEM_PEDIDO = 999999 não existe em ITENS_PEDIDO_COMPRA.ID_ITEM_PEDIDO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ITENS_RECEBIMENTO` (`ID_RECEBIMENTO`, `ID_ITEM_PEDIDO`, `ID_PRODUTO`, `QUANTIDADE_RECEBIDA`, `PRECO_UNITARIO_RECEBIDO`, `DATA_VALIDADE`, `LOTE`, `OBSERVACOES`)
+VALUES (1, 999999, 1, 20.000, 17.50, '2028-10-01', 'L2026-10A', NULL);
+
+-- Teste 128 | ITENS_RECEBIMENTO | FK órfã: ID_RECEBIMENTO = 999999 não existe em RECEBIMENTOS_COMPRA.ID_RECEBIMENTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ITENS_RECEBIMENTO` (`ID_RECEBIMENTO`, `ID_ITEM_PEDIDO`, `ID_PRODUTO`, `QUANTIDADE_RECEBIDA`, `PRECO_UNITARIO_RECEBIDO`, `DATA_VALIDADE`, `LOTE`, `OBSERVACOES`)
+VALUES (999999, 1, 1, 20.000, 17.50, '2028-10-01', 'L2026-10A', NULL);
+
+-- Teste 129 | MOVIMENTACOES_ESTOQUE | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_ESTOQUE` (`ID_PRODUTO`, `ID_USUARIO`, `TIPO_MOVIMENTACAO`, `QUANTIDADE`, `DATA_MOVIMENTACAO`, `MOTIVO`, `CUSTO_UNITARIO`, `OBSERVACOES`)
+VALUES (1, 999999, 'ENTRADA', 20.000, '2026-10-07 14:30:00', 'Recebimento do pedido de compra 1', 17.50, NULL);
+
+-- Teste 130 | MOVIMENTACOES_ESTOQUE | FK órfã: ID_PRODUTO = 999999 não existe em PRODUTOS.ID_PRODUTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_ESTOQUE` (`ID_PRODUTO`, `ID_USUARIO`, `TIPO_MOVIMENTACAO`, `QUANTIDADE`, `DATA_MOVIMENTACAO`, `MOTIVO`, `CUSTO_UNITARIO`, `OBSERVACOES`)
+VALUES (999999, 8, 'ENTRADA', 20.000, '2026-10-07 14:30:00', 'Recebimento do pedido de compra 1', 17.50, NULL);
+
+-- Teste 131 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_CONTA_FINANCEIRA = 999999 não existe em CONTAS_FINANCEIRAS.ID_CONTA_FINANCEIRA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 1, NULL, NULL, NULL, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 132 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_RESERVA = 999999 não existe em RESERVAS.ID_RESERVA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (2, 999999, NULL, NULL, NULL, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 133 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_PROPRIETARIO = 999999 não existe em PROPRIETARIOS.ID_PROPRIETARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (2, 1, NULL, NULL, 999999, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 134 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_PEDIDO_COMPRA = 999999 não existe em PEDIDOS_COMPRA.ID_PEDIDO_COMPRA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (2, 1, 999999, NULL, NULL, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 135 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_ORDEM_MANUTENCAO = 999999 não existe em ORDENS_MANUTENCAO.ID_ORDEM_MANUTENCAO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (2, 1, NULL, 999999, NULL, NULL, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 136 | MOVIMENTACOES_FINANCEIRAS | FK órfã: ID_MOVIMENTACAO_ORIGINAL = 999999 não existe em MOVIMENTACOES_FINANCEIRAS.ID_MOVIMENTACAO_FINANCEIRA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `MOVIMENTACOES_FINANCEIRAS` (`ID_CONTA_FINANCEIRA`, `ID_RESERVA`, `ID_PEDIDO_COMPRA`, `ID_ORDEM_MANUTENCAO`, `ID_PROPRIETARIO`, `ID_MOVIMENTACAO_ORIGINAL`, `TIPO_MOVIMENTACAO`, `DESCRICAO`, `VALOR`, `DATA_MOVIMENTACAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (2, 1, NULL, NULL, NULL, 999999, 'RECEITA', 'Pagamento da reserva 1', 360.00, '2026-10-13 12:10:00', '2026-10-13', '2026-10-13 12:10:00', 'PAGA', NULL);
+
+-- Teste 137 | ORDENS_LIMPEZA | FK órfã: ID_RESERVA = 999999 não existe em RESERVAS.ID_RESERVA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ORDENS_LIMPEZA` (`ID_SALA`, `ID_FUNCIONARIO`, `ID_RESERVA`, `DATA_AGENDADA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 2, 999999, '2026-10-13 12:30:00', '2026-10-13 12:35:00', '2026-10-13 13:10:00', 'CONCLUIDA', NULL);
+
+-- Teste 138 | ORDENS_LIMPEZA | FK órfã: ID_FUNCIONARIO = 999999 não existe em FUNCIONARIOS.ID_FUNCIONARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ORDENS_LIMPEZA` (`ID_SALA`, `ID_FUNCIONARIO`, `ID_RESERVA`, `DATA_AGENDADA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 999999, 1, '2026-10-13 12:30:00', '2026-10-13 12:35:00', '2026-10-13 13:10:00', 'CONCLUIDA', NULL);
+
+-- Teste 139 | ORDENS_LIMPEZA | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ORDENS_LIMPEZA` (`ID_SALA`, `ID_FUNCIONARIO`, `ID_RESERVA`, `DATA_AGENDADA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 2, 1, '2026-10-13 12:30:00', '2026-10-13 12:35:00', '2026-10-13 13:10:00', 'CONCLUIDA', NULL);
+
+-- Teste 140 | ORDENS_MANUTENCAO | FK órfã: ID_FUNCIONARIO = 999999 não existe em FUNCIONARIOS.ID_FUNCIONARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ORDENS_MANUTENCAO` (`ID_SALA`, `ID_FUNCIONARIO`, `DESCRICAO_PROBLEMA`, `DATA_ABERTURA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `PRIORIDADE`, `STATUS`, `OBSERVACOES`)
+VALUES (4, 999999, 'Ar-condicionado não gela', '2026-10-20 09:00:00', '2026-10-22 08:00:00', NULL, 'ALTA', 'EM_ANDAMENTO', 'Aguardando peça');
+
+-- Teste 141 | ORDENS_MANUTENCAO | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `ORDENS_MANUTENCAO` (`ID_SALA`, `ID_FUNCIONARIO`, `DESCRICAO_PROBLEMA`, `DATA_ABERTURA`, `DATA_INICIO`, `DATA_CONCLUSAO`, `PRIORIDADE`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 5, 'Ar-condicionado não gela', '2026-10-20 09:00:00', '2026-10-22 08:00:00', NULL, 'ALTA', 'EM_ANDAMENTO', 'Aguardando peça');
+
+-- Teste 142 | PEDIDOS_COMPRA | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PEDIDOS_COMPRA` (`ID_FORNECEDOR`, `ID_USUARIO`, `DATA_PEDIDO`, `DATA_PREVISTA_ENTREGA`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 999999, '2026-10-02 10:00:00', '2026-10-07', 'RECEBIDO', NULL);
+
+-- Teste 143 | PEDIDOS_COMPRA | FK órfã: ID_FORNECEDOR = 999999 não existe em FORNECEDORES.ID_FORNECEDOR
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PEDIDOS_COMPRA` (`ID_FORNECEDOR`, `ID_USUARIO`, `DATA_PEDIDO`, `DATA_PREVISTA_ENTREGA`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 8, '2026-10-02 10:00:00', '2026-10-07', 'RECEBIDO', NULL);
+
+-- Teste 144 | PERFIS_USUARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PERFIS_USUARIOS` (`ID_USUARIO`, `ID_PERFIL`, `DATA_VINCULO`, `STATUS`)
+VALUES (999999, 4, '2026-10-27 16:30:53', 'ATIVO');
+
+-- Teste 145 | PERFIS_USUARIOS | FK órfã: ID_PERFIL = 999999 não existe em PERFIS.ID_PERFIL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PERFIS_USUARIOS` (`ID_USUARIO`, `ID_PERFIL`, `DATA_VINCULO`, `STATUS`)
+VALUES (1, 999999, '2026-10-27 16:30:53', 'ATIVO');
+
+-- Teste 146 | PERMISSOES_PERFIS | FK órfã: ID_PERMISSAO = 999999 não existe em PERMISSOES.ID_PERMISSAO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PERMISSOES_PERFIS` (`ID_PERFIL`, `ID_PERMISSAO`, `DATA_VINCULO`, `PERMITIDO`)
+VALUES (1, 999999, '2026-10-27 16:30:53', 1);
+
+-- Teste 147 | PERMISSOES_PERFIS | FK órfã: ID_PERFIL = 999999 não existe em PERFIS.ID_PERFIL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PERMISSOES_PERFIS` (`ID_PERFIL`, `ID_PERMISSAO`, `DATA_VINCULO`, `PERMITIDO`)
+VALUES (999999, 1, '2026-10-27 16:30:53', 1);
+
+-- Teste 148 | PRODUTOS | FK órfã: ID_CATEGORIA = 999999 não existe em CATEGORIAS_PRODUTOS.ID_CATEGORIA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PRODUTOS` (`ID_CATEGORIA`, `NOME`, `DESCRICAO`, `UNIDADE_MEDIDA`, `ESTOQUE_MINIMO`, `CUSTO_UNITARIO`, `STATUS`)
+VALUES (999999, 'Detergente neutro 5L', NULL, 'LITRO', 5.000, 18.90, 'ATIVO');
+
+-- Teste 149 | PRODUTOS_FORNECEDORES | FK órfã: ID_PRODUTO = 999999 não existe em PRODUTOS.ID_PRODUTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PRODUTOS_FORNECEDORES` (`ID_PRODUTO`, `ID_FORNECEDOR`, `CODIGO_PRODUTO_FORNECEDOR`, `PRECO_COMPRA`, `PRAZO_ENTREGA`, `QUANTIDADE_MINIMA_PEDIDO`, `PRODUTO_PRINCIPAL`, `STATUS`)
+VALUES (999999, 1, 'ORFAO-769', 17.50, 3, 2.000, 1, 'ATIVO');
+
+-- Teste 150 | PRODUTOS_FORNECEDORES | FK órfã: ID_FORNECEDOR = 999999 não existe em FORNECEDORES.ID_FORNECEDOR
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PRODUTOS_FORNECEDORES` (`ID_PRODUTO`, `ID_FORNECEDOR`, `CODIGO_PRODUTO_FORNECEDOR`, `PRECO_COMPRA`, `PRAZO_ENTREGA`, `QUANTIDADE_MINIMA_PEDIDO`, `PRODUTO_PRINCIPAL`, `STATUS`)
+VALUES (1, 999999, 'LT-DET-5L', 17.50, 3, 2.000, 1, 'ATIVO');
+
+-- Teste 151 | PROPRIETARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `PROPRIETARIOS` (`ID_USUARIO`, `DATA_CADASTRO`, `PERCENTUAL_REPASSE`, `STATUS`)
+VALUES (999999, '2026-10-27 16:30:53', 85.00, 'ATIVO');
+
+-- Teste 152 | RECEBIMENTOS_COMPRA | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RECEBIMENTOS_COMPRA` (`ID_PEDIDO_COMPRA`, `ID_USUARIO`, `DATA_RECEBIMENTO`, `NUMERO_DOCUMENTO_RECEBIMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (1, 999999, '2026-10-07 14:00:00', 'NF-000123', 'COMPLETO', NULL);
+
+-- Teste 153 | RECEBIMENTOS_COMPRA | FK órfã: ID_PEDIDO_COMPRA = 999999 não existe em PEDIDOS_COMPRA.ID_PEDIDO_COMPRA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RECEBIMENTOS_COMPRA` (`ID_PEDIDO_COMPRA`, `ID_USUARIO`, `DATA_RECEBIMENTO`, `NUMERO_DOCUMENTO_RECEBIMENTO`, `STATUS`, `OBSERVACOES`)
+VALUES (999999, 4, '2026-10-07 14:00:00', 'NF-000123', 'COMPLETO', NULL);
+
+-- Teste 154 | REGRAS_CANCELAMENTO | FK órfã: ID_TIPO_SALA = 999999 não existe em TIPOS_SALA.ID_TIPO_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `REGRAS_CANCELAMENTO` (`ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `PRAZO_LIMITE_HORAS`, `PERCENTUAL_REEMBOLSO`, `MULTA_PERCENTUAL`, `STATUS`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`)
+VALUES (1, 999999, 'Edifício Central: reembolso total com 48 h', NULL, 48, 100.00, 0.00, 'ATIVO', '2026-01-01', NULL);
+
+-- Teste 155 | REGRAS_CANCELAMENTO | FK órfã: ID_IMOVEL = 999999 não existe em IMOVEIS.ID_IMOVEL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `REGRAS_CANCELAMENTO` (`ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `PRAZO_LIMITE_HORAS`, `PERCENTUAL_REEMBOLSO`, `MULTA_PERCENTUAL`, `STATUS`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`)
+VALUES (999999, NULL, 'Edifício Central: reembolso total com 48 h', NULL, 48, 100.00, 0.00, 'ATIVO', '2026-01-01', NULL);
+
+-- Teste 156 | REGRAS_GERAIS_CALENDARIO | FK órfã: ID_IMOVEL = 999999 não existe em IMOVEIS.ID_IMOVEL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `REGRAS_GERAIS_CALENDARIO` (`ID_IMOVEL`, `NOME`, `DESCRICAO`, `TIPO_REGRA`, `DATA_INICIO`, `DATA_FIM`, `RECORRENCIA`, `STATUS`)
+VALUES (999999, 'Natal', 'Feriado: imóvel fechado', 'FERIADO', '2026-12-25', '2026-12-25', 'ANUAL', 'ATIVO');
+
+-- Teste 157 | REGRAS_HORARIO_FUNCIONAMENTO | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `REGRAS_HORARIO_FUNCIONAMENTO` (`ID_SALA`, `DIA_SEMANA`, `HORARIO_ABERTURA`, `HORARIO_FECHAMENTO`, `ESTA_FECHADO`, `DATA_INICIO_VIGENCIA`, `DATA_FIM_VIGENCIA`, `STATUS`)
+VALUES (999999, 1, '08:00:00', '18:00:00', 0, '2026-01-01', NULL, 'ATIVO');
+
+-- Teste 158 | RESERVAS | FK órfã: ID_CLIENTE = 999999 não existe em CLIENTES.ID_CLIENTE
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RESERVAS` (`ID_CLIENTE`, `ID_SALA`, `ID_IMOVEL`, `ID_PROPRIETARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `DATA_RESERVA`, `VALOR_TOTAL`, `STATUS`, `OBSERVACOES`, `DATA_CANCELAMENTO`, `MOTIVO_CANCELAMENTO`)
+VALUES (999999, 1, 1, 1, '2026-10-13 09:00:00', '2026-10-13 12:00:00', '2026-10-05 14:00:00', 360.00, 'CONCLUIDA', NULL, NULL, NULL);
+
+-- Teste 159 | RESERVAS | FK órfã: ID_SALA = 999999 não existe em SALAS.ID_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RESERVAS` (`ID_CLIENTE`, `ID_SALA`, `ID_IMOVEL`, `ID_PROPRIETARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `DATA_RESERVA`, `VALOR_TOTAL`, `STATUS`, `OBSERVACOES`, `DATA_CANCELAMENTO`, `MOTIVO_CANCELAMENTO`)
+VALUES (1, 999999, 1, 1, '2026-10-13 09:00:00', '2026-10-13 12:00:00', '2026-10-05 14:00:00', 360.00, 'CONCLUIDA', NULL, NULL, NULL);
+
+-- Teste 160 | RESERVAS | FK órfã: ID_PROPRIETARIO = 999999 não existe em PROPRIETARIOS.ID_PROPRIETARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RESERVAS` (`ID_CLIENTE`, `ID_SALA`, `ID_IMOVEL`, `ID_PROPRIETARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `DATA_RESERVA`, `VALOR_TOTAL`, `STATUS`, `OBSERVACOES`, `DATA_CANCELAMENTO`, `MOTIVO_CANCELAMENTO`)
+VALUES (1, 1, 1, 999999, '2026-10-13 09:00:00', '2026-10-13 12:00:00', '2026-10-05 14:00:00', 360.00, 'CONCLUIDA', NULL, NULL, NULL);
+
+-- Teste 161 | RESERVAS | FK órfã: ID_IMOVEL = 999999 não existe em IMOVEIS.ID_IMOVEL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `RESERVAS` (`ID_CLIENTE`, `ID_SALA`, `ID_IMOVEL`, `ID_PROPRIETARIO`, `DATA_HORA_INICIO`, `DATA_HORA_FIM`, `DATA_RESERVA`, `VALOR_TOTAL`, `STATUS`, `OBSERVACOES`, `DATA_CANCELAMENTO`, `MOTIVO_CANCELAMENTO`)
+VALUES (1, 1, 999999, 1, '2026-10-13 09:00:00', '2026-10-13 12:00:00', '2026-10-05 14:00:00', 360.00, 'CONCLUIDA', NULL, NULL, NULL);
+
+-- Teste 162 | SALAS | FK órfã: ID_TIPO_SALA = 999999 não existe em TIPOS_SALA.ID_TIPO_SALA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `SALAS` (`ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `CAPACIDADE`, `VALOR_HORA`, `STATUS`)
+VALUES (1, 999999, 'ORFAO-808', NULL, 8, 120.00, 'ATIVO');
+
+-- Teste 163 | SALAS | FK órfã: ID_IMOVEL = 999999 não existe em IMOVEIS.ID_IMOVEL
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `SALAS` (`ID_IMOVEL`, `ID_TIPO_SALA`, `NOME`, `DESCRICAO`, `CAPACIDADE`, `VALOR_HORA`, `STATUS`)
+VALUES (999999, 1, 'Sala Aurora', NULL, 8, 120.00, 'ATIVO');
+
+-- Teste 164 | TELEFONES_FORNECEDORES | FK órfã: ID_FORNECEDOR = 999999 não existe em FORNECEDORES.ID_FORNECEDOR
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `TELEFONES_FORNECEDORES` (`ID_FORNECEDOR`, `NUMERO_TELEFONE`, `TIPO_TELEFONE`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, '1140041001', 'COMERCIAL', 1, 'ATIVO');
+
+-- Teste 165 | TELEFONES_USUARIOS | FK órfã: ID_USUARIO = 999999 não existe em USUARIOS.ID_USUARIO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `TELEFONES_USUARIOS` (`ID_USUARIO`, `NUMERO_TELEFONE`, `TIPO_TELEFONE`, `PRINCIPAL`, `STATUS`)
+VALUES (999999, '1133334444', 'RESIDENCIAL', 0, 'ATIVO');
+
+-- Teste 166 | USO_MATERIAIS_LIMPEZA | FK órfã: ID_PRODUTO = 999999 não existe em PRODUTOS.ID_PRODUTO
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `USO_MATERIAIS_LIMPEZA` (`ID_ORDEM_LIMPEZA`, `ID_PRODUTO`, `QUANTIDADE_UTILIZADA`, `DATA_UTILIZACAO`, `OBSERVACOES`)
+VALUES (1, 999999, 0.250, '2026-10-13 12:40:00', NULL);
+
+-- Teste 167 | USO_MATERIAIS_LIMPEZA | FK órfã: ID_ORDEM_LIMPEZA = 999999 não existe em ORDENS_LIMPEZA.ID_ORDEM_LIMPEZA
+-- Esperado: ERRO 1452 (falha de chave estrangeira: pai não existe)
+INSERT INTO `USO_MATERIAIS_LIMPEZA` (`ID_ORDEM_LIMPEZA`, `ID_PRODUTO`, `QUANTIDADE_UTILIZADA`, `DATA_UTILIZACAO`, `OBSERVACOES`)
+VALUES (999999, 1, 0.250, '2026-10-13 12:40:00', NULL);
+
+-- =====================================================================
+-- D) EXCLUSÃO DO PAI: não pode deixar filhos órfãos
+-- =====================================================================
+
+-- Teste 168 | SALAS | excluir o pai deixaria registros órfãos (reservas, check-ins e ordens apontam para ela)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `SALAS` WHERE `ID_SALA` = 1;
+
+-- Teste 169 | IMOVEIS | excluir o pai deixaria registros órfãos (salas apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `IMOVEIS` WHERE `ID_IMOVEL` = 1;
+
+-- Teste 170 | PROPRIETARIOS | excluir o pai deixaria registros órfãos (imóveis apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `PROPRIETARIOS` WHERE `ID_PROPRIETARIO` = 1;
+
+-- Teste 171 | CLIENTES | excluir o pai deixaria registros órfãos (reservas apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `CLIENTES` WHERE `ID_CLIENTE` = 1;
+
+-- Teste 172 | FUNCIONARIOS | excluir o pai deixaria registros órfãos (check-ins apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `FUNCIONARIOS` WHERE `ID_FUNCIONARIO` = 1;
+
+-- Teste 173 | RESERVAS | excluir o pai deixaria registros órfãos (check-in, limpeza e financeiro apontam para ela)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `RESERVAS` WHERE `ID_RESERVA` = 1;
+
+-- Teste 174 | PRODUTOS | excluir o pai deixaria registros órfãos (estoque e compras apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `PRODUTOS` WHERE `ID_PRODUTO` = 1;
+
+-- Teste 175 | FORNECEDORES | excluir o pai deixaria registros órfãos (pedidos e contatos apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `FORNECEDORES` WHERE `ID_FORNECEDOR` = 1;
+
+-- Teste 176 | PEDIDOS_COMPRA | excluir o pai deixaria registros órfãos (itens e recebimentos apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `PEDIDOS_COMPRA` WHERE `ID_PEDIDO_COMPRA` = 1;
+
+-- Teste 177 | PERFIS | excluir o pai deixaria registros órfãos (usuários e permissões apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `PERFIS` WHERE `ID_PERFIL` = 1;
+
+-- Teste 178 | TIPOS_SALA | excluir o pai deixaria registros órfãos (salas apontam para ele)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `TIPOS_SALA` WHERE `ID_TIPO_SALA` = 1;
+
+-- Teste 179 | CATEGORIAS_PRODUTOS | excluir o pai deixaria registros órfãos (produtos apontam para ela)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `CATEGORIAS_PRODUTOS` WHERE `ID_CATEGORIA` = 1;
+
+-- Teste 180 | CONTAS_FINANCEIRAS | excluir o pai deixaria registros órfãos (movimentações apontam para ela)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `CONTAS_FINANCEIRAS` WHERE `ID_CONTA_FINANCEIRA` = 2;
+
+-- Teste 181 | MOVIMENTACOES_FINANCEIRAS | excluir o pai deixaria registros órfãos (o estorno 4 aponta para ela)
+-- Esperado: ERRO 1451 (falha de chave estrangeira: ainda existem filhos)
+DELETE FROM `MOVIMENTACOES_FINANCEIRAS` WHERE `ID_MOVIMENTACAO_FINANCEIRA` = 3;
