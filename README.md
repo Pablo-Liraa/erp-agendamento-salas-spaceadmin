@@ -64,29 +64,37 @@ O repositório está organizado para separar os documentos acadêmicos, os diagr
 
 ```text
 erp-agendamento-salas-spaceadmin/
+│   .gitignore
+│   README.md
 │
-├── README.md
-├── .gitignore
-│
-├── docs/
-│   ├── diagramas/
-│   │   ├── DER.png
-│   │   └── fluxogramas.jpg
+├───docs
+│   ├───diagramas
+│   │       DER entrega 1.png
+│   │       DER_sistema_reservas.pdf
+│   │       DER_sistema_reservas.png
+│   │       fluxogramas.jpg
 │   │
-│   ├── entregas/
-│   │   ├── Entrega 1 SpaceAdmin.docx
-│   │   ├── Entrega 1 SpaceAdmin_CORRIGIDA.docx
-│   │   ├── Entrega 2 SpaceAdmin.docx
-│   │   └── SpaceAdmin - Completa.docx
+│   ├───entregas
+│   │       Entrega 1 SpaceAdmin.docx
+│   │       Entrega 1 SpaceAdmin_CORRIGIDA.docx
+│   │       Entrega 2 SpaceAdmin.docx
+│   │       Grupo_03.docx
+│   │       Grupo_03.pdf
+│   │       SpaceAdmin - Completa.docx
 │   │
-│   └── ppt corporativo/
-│       ├── SpaceAdmin.pdf
-│       └── SpaceAdmin.pptx
+│   ├───modelo logico
+│   │       modelo logico.xlsx
+│   │
+│   └───ppt
+│           SpaceAdmin ERP.pptx
+│           SpaceAdmin.pdf
+│           SpaceAdmin.pptx
 │
-└── sql/
-    ├── 01_criar_banco.sql
-    ├── 02_dados_ficticios.sql
-    └── 03_testes_regras_invalidas.sql
+└───sql
+        01_criar_banco.sql
+        02_dados_ficticios.sql
+        03_testes_regras_invalidas.sql
+        04_consultas.sql
 ```
 
 ## 📐 Diagramas
